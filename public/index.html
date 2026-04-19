@@ -91,7 +91,12 @@
                 const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/auto/upload`, { method: 'POST', body: formData });
                 const data = await res.json();
                 fileUrl = data.secure_url;
-            } catch (e) { alert("Ошибка загрузки в облако"); return; }
+            } } catch (e) { 
+    console.error(e);
+    alert("Ошибка облака: " + e.message); 
+    return; 
+}
+
         }
 
         await fetch('/upload', { 
