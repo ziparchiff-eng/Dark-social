@@ -6,25 +6,23 @@ const app = express();
 const server = http.createServer(app);
 const io = socketio(server, { cors: { origin: "*" } });
 
-// Разрешаем серверу принимать JSON-данные
 app.use(express.json());
 app.use(express.static('public'));
 
 let posts = [];
 let stories = [];
 
-// API для получения данных
 app.get('/api/posts', (req, res) => res.json(posts));
 app.get('/api/stories', (req, res) => res.json(stories));
 
-// Принимаем только ссылку на файл и текст
 app.post('/upload', (req, res) => {
     try {
+        const { username, text, file, type } = req.body;
         const data = {
-            username: req.body.username || 'Аноним',
-            text: req.body.text || '',
-            file: req.body.file || null, // Здесь уже будет ссылка из облака
-            type: req.body.type,
+            username: username || 'Аноним',
+            text: text || '',
+            file: file || null,
+            type: type,
             date: new Date().toLocaleString()
         };
 
@@ -49,4 +47,4 @@ io.on('connection', (socket) => {
 });
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log(`Server is running on port ${PORT}`));
+server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
