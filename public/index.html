@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>DARK SOCIAL — ULTRA</title>
+    <title>DARK SOCIAL — Classic</title>
     <script src="/socket.io/socket.io.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
@@ -22,7 +22,6 @@
         .card { background: var(--card-bg); padding: 20px; border-radius: 24px; border: 1px solid var(--border-color); margin-bottom: 20px; }
         input, textarea { width: 100%; background: #1a1a1a; color: white; padding: 14px; border: 1px solid var(--border-color); border-radius: 14px; font-size: 14px; margin-bottom: 10px; box-sizing: border-box; outline: none; }
         button { background: var(--accent-color); color: black; border: none; padding: 12px 20px; border-radius: 14px; cursor: pointer; font-weight: 600; transition: 0.2s; }
-        button:disabled { opacity: 0.5; cursor: not-allowed; }
         .btn-story { background: transparent; color: white; border: 1px solid white; margin-right: 10px; }
         .post { background: var(--card-bg); padding: 20px; border-radius: 24px; margin-bottom: 20px; border: 1px solid var(--border-color); animation: slideDown 0.4s ease; }
         @keyframes slideDown { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
@@ -49,8 +48,8 @@
         <textarea id="postText" rows="3" placeholder="О чем вы думаете?"></textarea>
         <input type="file" id="fileInput" accept="image/*,video/*">
         <div style="display: flex; justify-content: flex-end;">
-            <button id="btnStory" class="btn-story" onclick="uploadContent('story')">В историю</button>
-            <button id="btnPost" onclick="uploadContent('post')">Опубликовать</button>
+            <button class="btn-story" onclick="uploadContent('story')">В историю</button>
+            <button onclick="uploadContent('post')">Опубликовать</button>
         </div>
     </div>
     <div id="feed"></div>
@@ -66,11 +65,6 @@
 <script>
     const socket = io();
 
-    // --- ЗАПОЛНИ ЭТИ ДАННЫЕ ИЗ CLOUDINARY ---
-    const CLOUD_NAME = 'dyefptrpj'; 
-    const UPLOAD_PRESET = 'dark_social_preset'; 
-    // --------------------------------------
-
     function createPostHTML(p) {
         return `<div class="post"><div class="post-header"><span class="post-user">${p.username}</span><span class="post-date">${p.date}</span></div><div class="post-text">${p.text}</div>${p.file ? (p.file.match(/\.(mp4|mov|webm)$/i) ? `<video src="${p.file}" controls></video>` : `<img src="${p.file}">`) : ''}</div>`;
     }
@@ -79,53 +73,21 @@
     }
 
     async function uploadContent(type) {
-        const userField = document.getElementById('username');
-        const textField = document.getElementById('postText');
-        const fileField = document.getElementById('fileInput');
-        const btnPost = document.getElementById('btnPost');
-        const btnStory = document.getElementById('btnStory');
+        const username = document.getElementById('username').value || 'Аноним';
+        const text = document.getElementById('postText').value;
+        const fileInput = document.getElementById('fileInput');
         
-        const username = userField.value || 'Аноним';
-        const text = textField.value;
-        const file = fileField.files[0];
-        let fileUrl = null;
-
-        if (file) {
-            btnPost.disabled = true; btnStory.disabled = true;
-            btnPost.innerText = "Загрузка..."; btnStory.innerText = "Загрузка...";
-            
-            const formData = new FormData();
-            formData.append('file', file);
-            formData.append('upload_preset', UPLOAD_PRESET);
-
-            try {
-                const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/auto/upload`, { method: 'POST', body: formData });
-                const data = await res.json();
-                if (res.ok) { fileUrl = data.secure_url; } else {
-                    alert("Ошибка облака: " + (data.error ? data.error.message : "Ошибка"));
-                    btnPost.disabled = false; btnStory.disabled = false;
-                    btnPost.innerText = "Опубликовать"; btnStory.innerText = "В историю";
-                    return;
-                }
-            } catch (e) {
-                alert("Ошибка сети при загрузке");
-                btnPost.disabled = false; btnStory.disabled = false;
-                btnPost.innerText = "Опубликовать"; btnStory.innerText = "В историю";
-                return;
-            }
-        }
+        const formData = new FormData();
+        formData.append('username', username);
+        formData.append('text', text);
+        formData.append('type', type);
+        if (fileInput.files[0]) formData.append('file', fileInput.files[0]);
 
         try {
-            await fetch('/upload', { 
-                method: 'POST', 
-                headers: { 'Content-Type': 'application/json' }, 
-                body: JSON.stringify({ username, text, file: fileUrl, type }) 
-            });
-            textField.value = ''; fileField.value = '';
+            await fetch('/upload', { method: 'POST', body: formData });
+            document.getElementById('postText').value = '';
+            document.getElementById('fileInput').value = '';
         } catch (e) { alert("Ошибка сервера"); }
-        
-        btnPost.disabled = false; btnStory.disabled = false;
-        btnPost.innerText = "Опубликовать"; btnStory.innerText = "В историю";
     }
 
     async function init() {
@@ -141,4 +103,20 @@
         const input = document.getElementById('chatInput');
         const user = document.getElementById('username').value || 'Аноним';
         if (input.value.trim()) {
-            socket.emit('message', { user, text: input
+            socket.emit('message', { user, text: input.value });
+            input.value = '';
+        }
+    }
+
+    socket.on('new-post', (post) => document.getElementById('feed').insertAdjacentHTML('afterbegin', createPostHTML(post)));
+    socket.on('new-story', (story) => document.getElementById('stories').insertAdjacentHTML('afterbegin', createStoryHTML(story)));
+    socket.on('message', (msg) => {
+        const box = document.getElementById('chat-box');
+        const isMe = msg.user === (document.getElementById('username').value || 'Аноним');
+        box.innerHTML += `<div class="msg ${isMe ? 'msg-sent' : 'msg-received'}"><span class="msg-user">${msg.user}</span>${msg.text}</div>`;
+        box.scrollTop = box.scrollHeight;
+    });
+    init();
+</script>
+</body>
+</html>
