@@ -1,13 +1,34 @@
 const express = require('express');
 const http = require('http');
 const socketio = require('socket.io');
+const multer = require('multer');
+const cloudinary = require('cloudinary').v2;
+const { CloudinaryStorage } = require('multer-storage-cloudinary');
 
 const app = express();
 const server = http.createServer(app);
 const io = socketio(server, { cors: { origin: "*" } });
 
-app.use(express.json());
+// --- ВСТАВЬ СВОИ КЛЮЧИ ТУТ ---
+cloudinary.config({ 
+  cloud_name: 'dyefptrpj', 
+  api_key: '682366164847197', 
+  api_secret: 'ImU_sE0CafscgQDGnKEOANmC8so' 
+});
+
+const storage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  folder: 'dark_social',
+  allowed_formats: ['jpg', 'png', 'jpeg', 'mp4', 'mov', 'gif', 'webm'],
+  params: {
+    folder: 'dark_social',
+    resource_type: 'auto', // Чтобы видео грузились без ошибок
+  },
+});
+const upload = multer({ storage: storage });
+
 app.use(express.static('public'));
+app.use(express.json());
 
 let posts = [];
 let stories = [];
@@ -15,14 +36,13 @@ let stories = [];
 app.get('/api/posts', (req, res) => res.json(posts));
 app.get('/api/stories', (req, res) => res.json(stories));
 
-app.post('/upload', (req, res) => {
+app.post('/upload', upload.single('file'), (req, res) => {
     try {
-        const { username, text, file, type } = req.body;
         const data = {
-            username: username || 'Аноним',
-            text: text || '',
-            file: file || null,
-            type: type,
+            username: req.body.username || 'Аноним',
+            text: req.body.text || '',
+            file: req.file ? req.file.path : null,
+            type: req.body.type,
             date: new Date().toLocaleString()
         };
 
