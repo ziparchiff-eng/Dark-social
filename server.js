@@ -1,73 +1,45 @@
 const express = require('express');
 const http = require('http');
 const socketio = require('socket.io');
-const multer = require('multer');
-const cloudinary = require('cloudinary').v2;
-const { CloudinaryStorage } = require('multer-storage-cloudinary');
 
 const app = express();
 const server = http.createServer(app);
 const io = socketio(server, { cors: { origin: "*" } });
 
-// --- НАСТРОЙКИ CLOUDINARY ---
-cloudinary.config({ 
-  cloud_name: 'dyefptrpj', 
-  api_key: '682366164847197', 
-  api_secret: 'ImU_sE0CafscgQDGnKEOANmC8so' 
-});
-
-// ИСПРАВЛЕННЫЙ БЛОК ХРАНИЛИЩА
-const storage = new CloudinaryStorage({
-  cloudinary: cloudinary,
-  folder: 'dark_social', 
-  allowed_formats: ['jpg', 'png', 'jpeg', 'mp4', 'mov', 'gif', 'webm'],
-  params: {
-    folder: 'dark_social',
-    resource_type: 'auto', // ЭТА СТРОКА РЕШАЕТ ПРОБЛЕМУ: теперь Cloudinary принимает и фото, и видео
-  },
-});
-const upload = multer({ storage: storage });
-
+// Разрешаем серверу принимать JSON-данные
+app.use(express.json());
 app.use(express.static('public'));
 
 let posts = [];
 let stories = [];
 
+// API для получения данных
 app.get('/api/posts', (req, res) => res.json(posts));
 app.get('/api/stories', (req, res) => res.json(stories));
 
+// Принимаем только ссылку на файл и текст
 app.post('/upload', (req, res) => {
-    upload.single('file')(req, res, (err) => {
-        if (err) {
-            console.error("❌ ОШИБКА MULTER/CLOUDINARY:", err);
-            return res.status(500).json({ success: false, error: err.message });
+    try {
+        const data = {
+            username: req.body.username || 'Аноним',
+            text: req.body.text || '',
+            file: req.body.file || null, // Здесь уже будет ссылка из облака
+            type: req.body.type,
+            date: new Date().toLocaleString()
+        };
+
+        if (data.type === 'story') {
+            stories.unshift(data);
+            if (stories.length > 20) stories.pop();
+            io.emit('new-story', data);
+        } else {
+            posts.unshift(data);
+            io.emit('new-post', data);
         }
-
-        try {
-            const data = {
-                username: req.body.username || 'Аноним',
-                text: req.body.text,
-                file: req.file ? req.file.path : null,
-                type: req.body.type,
-                date: new Date().toLocaleString()
-            };
-
-            console.log("✅ Файл успешно загружен в облако:", data.file);
-
-            if (data.type === 'story') {
-                stories.unshift(data);
-                if (stories.length > 20) stories.pop();
-                io.emit('new-story', data);
-            } else {
-                posts.unshift(data);
-                io.emit('new-post', data);
-            }
-            res.json({ success: true });
-        } catch (e) {
-            console.error("❌ ОШИБКА ПРИ СОХРАНЕНИИ ПОСТА:", e);
-            res.status(500).json({ success: false, error: e.message });
-        }
-    });
+        res.json({ success: true });
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
+    }
 });
 
 io.on('connection', (socket) => {
@@ -77,4 +49,4 @@ io.on('connection', (socket) => {
 });
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+server.listen(PORT, () => console.log(`Server is running on port ${PORT}`));
