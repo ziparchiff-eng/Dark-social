@@ -1,48 +1,58 @@
 const express = require('express');
 const http = require('http');
 const socketio = require('socket.io');
-const multer = require('multer');
-const cloudinary = require('cloudinary').v2;
-const { CloudinaryStorage } = require('multer-storage-cloudinary');
 
 const app = express();
 const server = http.createServer(app);
 const io = socketio(server, { cors: { origin: "*" } });
 
-// --- ВСТАВЬ СВОИ КЛЮЧИ ТУТ ---
-cloudinary.config({ 
-  cloud_name: 'dyefptrpj', 
-  api_key: '682366164847197', 
-  api_secret: 'ImU_sE0CafscgQDGnKEOANmC8so' 
-});
-
-const storage = new CloudinaryStorage({
-  cloudinary: cloudinary,
-  folder: 'dark_social',
-  allowed_formats: ['jpg', 'png', 'jpeg', 'mp4', 'mov', 'gif', 'webm'],
-  params: {
-    folder: 'dark_social',
-    resource_type: 'auto', // Чтобы видео грузились без ошибок
-  },
-});
-const upload = multer({ storage: storage });
-
-app.use(express.static('public'));
 app.use(express.json());
+app.use(express.static('public'));
 
+// База данных в памяти
+let users = []; // {username, password}
 let posts = [];
 let stories = [];
 
 app.get('/api/posts', (req, res) => res.json(posts));
 app.get('/api/stories', (req, res) => res.json(stories));
 
-app.post('/upload', upload.single('file'), (req, res) => {
+// --- СИСТЕМА АККАУНТОВ ---
+app.post('/auth/register', (req, res) => {
+    const { username, password } = req.body;
+    if (!username || !password) return res.status(400).json({ error: "Заполните все поля" });
+    if (users.find(u => u.username === username)) return res.status(400).json({ error: "Имя занято" });
+    
+    users.push({ username, password });
+    res.json({ success: true });
+});
+
+app.post('/auth/login', (req, res) => {
+    const { username, password } = req.body;
+    const user = users.find(u => u.username === username && u.password === password);
+    if (!user) return res.status(400).json({ error: "Неверный логин или пароль" });
+    res.json({ success: true, username: user.username });
+});
+
+// --- УДАЛЕНИЕ КОНТЕНТА (Только для админа) ---
+app.post('/delete-post', (req, res) => {
+    const { username, postId } = req.body;
+    if (username !== 'admin') return res.status(403).json({ error: "Только админ может удалять" });
+
+    posts = posts.filter((_, index) => index !== postId);
+    io.emit('refresh-content'); // Сигнал всем обновить ленту
+    res.json({ success: true });
+});
+
+// Загрузка контента
+app.post('/upload', (req, res) => {
     try {
+        const { username, text, file, type } = req.body;
         const data = {
-            username: req.body.username || 'Аноним',
-            text: req.body.text || '',
-            file: req.file ? req.file.path : null,
-            type: req.body.type,
+            username,
+            text: text || '',
+            file: file || null,
+            type: type,
             date: new Date().toLocaleString()
         };
 
@@ -61,9 +71,7 @@ app.post('/upload', upload.single('file'), (req, res) => {
 });
 
 io.on('connection', (socket) => {
-    socket.on('message', (msg) => {
-        io.emit('message', msg); 
-    });
+    socket.on('message', (msg) => { io.emit('message', msg); });
 });
 
 const PORT = process.env.PORT || 3000;
