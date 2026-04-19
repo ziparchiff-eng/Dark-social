@@ -16,11 +16,15 @@ cloudinary.config({
   api_secret: 'ImU_sE0CafscgQDGnKEOANmC8so' 
 });
 
-// Улучшенная настройка хранилища
+// ИСПРАВЛЕННЫЙ БЛОК ХРАНИЛИЩА
 const storage = new CloudinaryStorage({
   cloudinary: cloudinary,
-  folder: 'dark_social',
-  allowed_formats: ['jpg', 'png', 'jpeg', 'mp4', 'mov', 'gif', 'webm'], // Добавил больше форматов
+  folder: 'dark_social', 
+  allowed_formats: ['jpg', 'png', 'jpeg', 'mp4', 'mov', 'gif', 'webm'],
+  params: {
+    folder: 'dark_social',
+    resource_type: 'auto', // ЭТА СТРОКА РЕШАЕТ ПРОБЛЕМУ: теперь Cloudinary принимает и фото, и видео
+  },
 });
 const upload = multer({ storage: storage });
 
