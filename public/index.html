@@ -3,294 +3,115 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>DARK SOCIAL — Premium</title>
+    <title>DARK SOCIAL — Ultra</title>
     <script src="/socket.io/socket.io.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg-color: #000000;
-            --card-bg: #121212;
-            --accent-color: #ffffff;
-            --text-main: #ffffff;
-            --text-secondary: #8e8e8e;
-            --border-color: #262626;
-            --input-bg: #1a1a1a;
-            --transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            --bg-color: #000; --card-bg: #121212; --accent-color: #fff;
+            --text-main: #fff; --text-secondary: #8e8e8e; --border-color: #262626;
         }
-
-        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-
-        body { 
-            font-family: 'Inter', sans-serif; 
-            background: var(--bg-color); 
-            color: var(--text-main); 
-            margin: 0; 
-            display: flex; 
-            flex-direction: column; 
-            align-items: center; 
-            overflow-x: hidden;
-        }
-
-        header { 
-            background: rgba(0, 0, 0, 0.8); 
-            backdrop-filter: blur(20px);
-            color: white; 
-            width: 100%; 
-            text-align: center; 
-            padding: 18px 0; 
-            font-size: 18px; 
-            font-weight: 700; 
-            letter-spacing: 3px; 
-            position: sticky; 
-            top: 0; 
-            z-index: 1000; 
-            border-bottom: 1px solid var(--border-color);
-        }
-        
-        .container { 
-            width: 100%; 
-            max-width: 650px; 
-            padding: 0 15px; 
-            margin-top: 20px; 
-            padding-bottom: 100px; 
-        }
-        
-        /* Stories */
-        .stories-container { 
-            display: flex; 
-            gap: 12px; 
-            overflow-x: auto; 
-            padding: 20px 0; 
-            scrollbar-width: none; 
-        }
+        body { font-family: 'Inter', sans-serif; background: var(--bg-color); color: var(--text-main); margin: 0; display: flex; flex-direction: column; align-items: center; }
+        header { background: rgba(0, 0, 0, 0.8); backdrop-filter: blur(20px); color: white; width: 100%; text-align: center; padding: 18px 0; font-size: 18px; font-weight: 700; letter-spacing: 3px; position: sticky; top: 0; z-index: 1000; border-bottom: 1px solid var(--border-color); }
+        .container { width: 100%; max-width: 600px; padding: 0 15px; margin-top: 20px; padding-bottom: 100px; }
+        .stories-container { display: flex; gap: 12px; overflow-x: auto; padding: 20px 0; scrollbar-width: none; }
         .stories-container::-webkit-scrollbar { display: none; }
-
-        .story-wrapper { 
-            display: flex; 
-            flex-direction: column; 
-            align-items: center; 
-            gap: 6px; 
-            flex-shrink: 0; 
-            cursor: pointer;
-        }
-        .story { 
-            width: 68px; 
-            height: 68px; 
-            background: #222; 
-            border-radius: 50%; 
-            border: 2px solid var(--accent-color); 
-            object-fit: cover; 
-            transition: var(--transition);
-        }
-        .story:hover { transform: scale(1.05); border-color: #ccc; }
-        .story-name { font-size: 11px; color: var(--text-secondary); text-align: center; }
-
-        /* Forms and Cards */
-        .card { 
-            background: var(--card-bg); 
-            padding: 20px; 
-            border-radius: 24px; 
-            border: 1px solid var(--border-color); 
-            margin-bottom: 20px; 
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-        }
-
-        .input-group { margin-bottom: 12px; }
-        input, textarea { 
-            width: 100%; 
-            background: var(--input-bg); 
-            color: white; 
-            padding: 14px; 
-            border: 1px solid var(--border-color); 
-            border-radius: 14px; 
-            font-size: 14px; 
-            font-family: inherit;
-            transition: var(--transition);
-            outline: none;
-        }
-        input:focus, textarea:focus { border-color: var(--accent-color); background: #222; }
-
-        .btn-group { display: flex; justify-content: flex-end; gap: 10px; margin-top: 10px; }
-        button { 
-            background: var(--accent-color); 
-            color: black; 
-            border: none; 
-            padding: 12px 20px; 
-            border-radius: 14px; 
-            cursor: pointer; 
-            font-weight: 600; 
-            font-size: 14px;
-            transition: var(--transition);
-        }
-        button:hover { opacity: 0.8; transform: translateY(-2px); }
-        .btn-story { background: transparent; color: white; border: 1px solid white; }
-        .btn-story:hover { background: white; color: black; }
-
-        /* Feed */
-        .post { 
-            background: var(--card-bg); 
-            padding: 20px; 
-            border-radius: 24px; 
-            margin-bottom: 20px; 
-            border: 1px solid var(--border-color); 
-            animation: slideDown 0.4s ease;
-        }
+        .story-wrapper { display: flex; flex-direction: column; align-items: center; gap: 6px; flex-shrink: 0; }
+        .story { width: 68px; height: 68px; background: #222; border-radius: 50%; border: 2px solid var(--accent-color); object-fit: cover; }
+        .story-name { font-size: 11px; color: var(--text-secondary); }
+        .card { background: var(--card-bg); padding: 20px; border-radius: 24px; border: 1px solid var(--border-color); margin-bottom: 20px; }
+        input, textarea { width: 100%; background: #1a1a1a; color: white; padding: 14px; border: 1px solid var(--border-color); border-radius: 14px; font-size: 14px; margin-bottom: 10px; box-sizing: border-box; outline: none; }
+        button { background: var(--accent-color); color: black; border: none; padding: 12px 20px; border-radius: 14px; cursor: pointer; font-weight: 600; }
+        .btn-story { background: transparent; color: white; border: 1px solid white; margin-right: 10px; }
+        .post { background: var(--card-bg); padding: 20px; border-radius: 24px; margin-bottom: 20px; border: 1px solid var(--border-color); animation: slideDown 0.4s ease; }
         @keyframes slideDown { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
-        .post-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
-        .post-user { font-weight: 600; font-size: 15px; }
+        .post-header { display: flex; justify-content: space-between; margin-bottom: 10px; }
+        .post-user { font-weight: 600; }
         .post-date { font-size: 12px; color: var(--text-secondary); }
-        .post-text { font-size: 15px; line-height: 1.5; color: #ddd; margin-bottom: 15px; }
-        .post img, .post video { 
-            width: 100%; 
-            border-radius: 16px; 
-            display: block; 
-            max-height: 500px;
-            object-fit: cover;
-        }
-
-        /* Chat */
-        .chat-title { text-align: center; font-weight: 600; margin-bottom: 15px; font-size: 16px; }
-        #chat-box { 
-            height: 350px; 
-            overflow-y: auto; 
-            padding: 10px; 
-            display: flex; 
-            flex-direction: column; 
-            gap: 10px;
-        }
-        #chat-box::-webkit-scrollbar { width: 4px; }
-        #chat-box::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
-
-        .msg { 
-            max-width: 80%; 
-            padding: 10px 15px; 
-            border-radius: 18px; 
-            font-size: 14px; 
-            line-height: 1.4; 
-            animation: fadeIn 0.2s ease;
-        }
-        @keyframes fadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+        .post-text { font-size: 15px; margin-bottom: 15px; color: #ddd; }
+        .post img, .post video { width: 100%; border-radius: 15px; }
+        #chat-box { height: 300px; overflow-y: auto; padding: 10px; display: flex; flex-direction: column; gap: 10px; }
+        .msg { max-width: 80%; padding: 10px 15px; border-radius: 15px; font-size: 14px; }
         .msg-received { background: #222; color: white; align-self: flex-start; border-bottom-left-radius: 2px; }
-        .msg-sent { background: #fff; color: black; align-self: flex-end; border-bottom-right-radius: 2px; font-weight: 500; }
-        .msg-user { font-size: 10px; opacity: 0.6; display: block; margin-bottom: 4px; }
-        .chat-input-area { display: flex; gap: 10px; margin-top: 15px; }
-        .chat-input-area input { margin-bottom: 0; }
+        .msg-sent { background: #fff; color: black; align-self: flex-end; border-bottom-right-radius: 2px; }
+        .msg-user { font-size: 10px; opacity: 0.7; display: block; margin-bottom: 4px; }
+        .chat-input-area { display: flex; gap: 10px; }
     </style>
 </head>
 <body>
-
 <header>DARK SOCIAL</header>
-
 <div class="container">
-    <!-- Секция Историй -->
     <div class="stories-container" id="stories"></div>
-
-    <!-- Создание контента -->
     <div class="card">
-        <div style="margin-bottom: 15px; font-weight: 600; font-size: 16px;">Создать публикацию</div>
-        <div class="input-group">
-            <input type="text" id="username" placeholder="Ваше имя">
-        </div>
-        <div class="input-group">
-            <textarea id="postText" rows="3" placeholder="О чем вы думаете?"></textarea>
-        </div>
-        <div class="input-group">
-            <input type="file" id="fileInput" accept="image/*,video/*">
-        </div>
-        <div class="btn-group">
+        <div style="margin-bottom: 15px; font-weight: 600;">Создать публикацию</div>
+        <input type="text" id="username" placeholder="Ваше имя">
+        <textarea id="postText" rows="3" placeholder="О чем вы думаете?"></textarea>
+        <input type="file" id="fileInput" accept="image/*,video/*">
+        <div style="display: flex; justify-content: flex-end;">
             <button class="btn-story" onclick="uploadContent('story')">В историю</button>
             <button onclick="uploadContent('post')">Опубликовать</button>
         </div>
     </div>
-
-    <!-- Лента постов -->
     <div id="feed"></div>
-
-    <!-- Чат -->
     <div class="card">
-        <div class="chat-title">Live Chat</div>
+        <div style="margin-bottom: 15px; font-weight: 600; text-align: center;">Live Chat</div>
         <div id="chat-box"></div>
         <div class="chat-input-area">
-            <input type="text" id="chatInput" placeholder="Сообщение...">
+            <input type="text" id="chatInput" placeholder="Сообщение..." style="margin-bottom: 0;">
             <button onclick="sendMessage()">Отправить</button>
         </div>
     </div>
 </div>
-
 <script>
     const socket = io();
 
-    // Функция генерации HTML для поста
+    // --- ОБЯЗАТЕЛЬНО ЗАПОЛНИ ЭТО ---
+    const CLOUD_NAME = 'const CLOUD_NAME ='; 
+    const UPLOAD_PRESET = 'dark_social_preset'; 
+    // ------------------------------
+
     function createPostHTML(p) {
-        return `
-            <div class="post">
-                <div class="post-header">
-                    <span class="post-user">${p.username}</span>
-                    <span class="post-date">${p.date}</span>
-                </div>
-                <div class="post-text">${p.text}</div>
-                ${p.file ? (p.file.endsWith('.mp4') || p.file.endsWith('.mov') || p.file.endsWith('.webm') 
-                    ? `<video src="${p.file}" controls loading="lazy"></video>` 
-                    : `<img src="${p.file}" loading="lazy" onerror="this.src='https://via.placeholder.com/400x300'">`) 
-                    : ''}
-            </div>`;
+        return `<div class="post"><div class="post-header"><span class="post-user">${p.username}</span><span class="post-date">${p.date}</span></div><div class="post-text">${p.text}</div>${p.file ? (p.file.endsWith('.mp4') || p.file.endsWith('.mov') || p.file.endsWith('.webm') ? `<video src="${p.file}" controls></video>` : `<img src="${p.file}">`) : ''}</div>`;
     }
-
-    // Функция генерации HTML для сторис
     function createStoryHTML(s) {
-        return `
-            <div class="story-wrapper">
-                <img src="${s.file}" class="story" loading="lazy" onerror="this.src='https://via.placeholder.com/65'">
-                <span class="story-name">${s.username}</span>
-            </div>`;
+        return `<div class="story-wrapper"><img src="${s.file}" class="story"><span class="story-name">${s.username}</span></div>`;
     }
 
-    // Загрузка контента
     async function uploadContent(type) {
         const username = document.getElementById('username').value || 'Аноним';
         const text = document.getElementById('postText').value;
         const fileInput = document.getElementById('fileInput');
-        
-        const formData = new FormData();
-        formData.append('username', username);
-        formData.append('text', text);
-        formData.append('type', type);
-        if (fileInput.files[0]) formData.append('file', fileInput.files[0]);
+        let fileUrl = null;
 
-        try {
-            const response = await fetch('/upload', { method: 'POST', body: formData });
-            const result = await response.json();
-            
-            if (result.success) {
-                document.getElementById('postText').value = '';
-                document.getElementById('fileInput').value = '';
-                // Сообщение об успехе можно убрать, если раздражает
-                console.log("Опубликовано успешно!");
-            } else {
-                alert("Ошибка сервера: " + (result.error || "Неизвестная ошибка"));
-            }
-        } catch (e) {
-            alert("Ошибка сети. Проверьте интернет-соединение.");
-            console.error(e);
+        if (fileInput.files[0]) {
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+            formData.append('upload_preset', UPLOAD_PRESET);
+            try {
+                const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/auto/upload`, { method: 'POST', body: formData });
+                const data = await res.json();
+                fileUrl = data.secure_url;
+            } catch (e) { alert("Ошибка загрузки в облако"); return; }
         }
+
+        await fetch('/upload', { 
+            method: 'POST', 
+            headers: { 'Content-Type': 'application/json' }, 
+            body: JSON.stringify({ username, text, file: fileUrl, type }) 
+        });
+        document.getElementById('postText').value = '';
+        document.getElementById('fileInput').value = '';
     }
 
-    // Первичная загрузка данных
     async function init() {
-        try {
-            const pRes = await fetch('/api/posts');
-            const posts = await pRes.json();
-            document.getElementById('feed').innerHTML = posts.map(p => createPostHTML(p)).join('');
-
-            const sRes = await fetch('/api/stories');
-            const stories = await sRes.json();
-            document.getElementById('stories').innerHTML = stories.map(s => createStoryHTML(s)).join('');
-        } catch (e) {
-            console.error("Ошибка при загрузке данных");
-        }
+        const pRes = await fetch('/api/posts');
+        const posts = await pRes.json();
+        document.getElementById('feed').innerHTML = posts.map(p => createPostHTML(p)).join('');
+        const sRes = await fetch('/api/stories');
+        const stories = await sRes.json();
+        document.getElementById('stories').innerHTML = stories.map(s => createStoryHTML(s)).join('');
     }
 
-    // Отправка сообщения в чат
     function sendMessage() {
         const input = document.getElementById('chatInput');
         const user = document.getElementById('username').value || 'Аноним';
@@ -300,30 +121,15 @@
         }
     }
 
-    // Мгновенные обновления через сокеты
-    socket.on('new-post', (post) => {
-        document.getElementById('feed').insertAdjacentHTML('afterbegin', createPostHTML(post));
-    });
-
-    socket.on('new-story', (story) => {
-        document.getElementById('stories').insertAdjacentHTML('afterbegin', createStoryHTML(story));
-    });
-
+    socket.on('new-post', (post) => document.getElementById('feed').insertAdjacentHTML('afterbegin', createPostHTML(post)));
+    socket.on('new-story', (story) => document.getElementById('stories').insertAdjacentHTML('afterbegin', createStoryHTML(story)));
     socket.on('message', (msg) => {
         const box = document.getElementById('chat-box');
-        const currentUser = document.getElementById('username').value || 'Аноним';
-        const isMe = msg.user === currentUser;
-        
-        const msgDiv = document.createElement('div');
-        msgDiv.className = `msg ${isMe ? 'msg-sent' : 'msg-received'}`;
-        msgDiv.innerHTML = `<span class="msg-user">${msg.user}</span>${msg.text}`;
-        
-        box.appendChild(msgDiv);
+        const isMe = msg.user === (document.getElementById('username').value || 'Аноним');
+        box.innerHTML += `<div class="msg ${isMe ? 'msg-sent' : 'msg-received'}"><span class="msg-user">${msg.user}</span>${msg.text}</div>`;
         box.scrollTop = box.scrollHeight;
     });
-
     init();
 </script>
-
 </body>
 </html>
