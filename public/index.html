@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>DARK SOCIAL — Pro Fixed</title>
+    <title>DARK SOCIAL — Admin Control</title>
     <script src="/socket.io/socket.io.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
         :root { --bg-color: #000; --card-bg: #121212; --accent-color: #fff; --text-main: #fff; --text-secondary: #8e8e8e; --border-color: #262626; }
         body { font-family: 'Inter', sans-serif; background: var(--bg-color); color: var(--text-main); margin: 0; display: flex; flex-direction: column; align-items: center; }
-        header { background: rgba(0,0,0,0.8); backdrop-filter: blur(20px); color: white; width: 100%; text-align: center; padding: 18px 0; font-size: 18px; font-weight: 700; position: sticky; top: 0; z-index: 1000; border-bottom: 1px solid var(--border-color); }
+        header { background: rgba(0, 0, 0, 0.8); backdrop-filter: blur(20px); color: white; width: 100%; text-align: center; padding: 18px 0; font-size: 18px; font-weight: 700; position: sticky; top: 0; z-index: 1000; border-bottom: 1px solid var(--border-color); }
         .container { width: 100%; max-width: 600px; padding: 0 15px; margin-top: 20px; padding-bottom: 80px; }
         #auth-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg-color); z-index: 2000; display: flex; justify-content: center; align-items: center; }
         .auth-card { background: var(--card-bg); padding: 30px; border-radius: 24px; border: 1px solid var(--border-color); width: 90%; max-width: 380px; text-align: center; }
@@ -37,6 +37,11 @@
         .profile-avatar { width: 120px; height: 120px; border-radius: 50%; border: 3px solid #fff; object-fit: cover; }
         .user-item { display: flex; align-items: center; gap: 10px; padding: 10px; background: #1a1a1a; border-radius: 15px; cursor: pointer; margin-bottom: 5px; }
         .user-item img { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; }
+        
+        /* Admin tools */
+        .admin-tools { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+        .btn-admin { background: #ffcc00; color: #000; }
+        .post-check { position: absolute; top: 15px; left: 15px; width: 20px; height: 20px; cursor: pointer; }
     </style>
 </head>
 <body>
@@ -62,9 +67,191 @@
 <div class="container">
     <div id="screen-home">
         <div class="stories-container" id="stories"></div>
+        
+        <!-- Панель управления админа -->
+        <div id="admin-controls" class="card hidden">
+            <div style="font-weight:600; margin-bottom:10px">Админ-панель</div>
+            <div class="admin-tools">
+                <button class="btn-admin" onclick="adminAction('all')">Очистить Всё</button>
+                <button class="btn-admin" onclick="adminAction('user')">Удалить посты юзера</button>
+                <button class="btn-admin" onclick="adminAction('selected')">Удалить выбранные</button>
+            </div>
+        </div>
+
         <div class="card">
             <div style="margin-bottom: 15px; font-weight: 600;">Создать публикацию</div>
             <textarea id="postText" rows="3" placeholder="О чем вы думаете?"></textarea>
             <input type="file" id="fileInput" accept="image/*,video/*">
             <div style="display: flex; justify-content: flex-end;">
-                <button class="btn-story" onclick="uploadContent('story')">В историю
+                <button class="btn-story" onclick="uploadContent('story')">В историю</button>
+                <button onclick="uploadContent('post')">Опубликовать</button>
+            </div>
+        </div>
+        <div id="feed"></div>
+        <div class="card">
+            <div style="text-align: center; margin-bottom: 10px; font-weight:600">Live Chat</div>
+            <div id="chat-box"></div>
+            <div style="display: flex; gap: 10px;">
+                <input type="text" id="chatInput" placeholder="Сообщение..." style="margin-bottom:0">
+                <button onclick="sendMessage()">Отправить</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="screen-search" class="hidden">
+        <div class="card">
+            <div style="display: flex; gap: 10px;">
+                <input type="text" id="searchQuery" placeholder="Поиск по нику или имени..." style="margin-bottom:0">
+                <button onclick="searchUsers()">Найти</button>
+            </div>
+        </div>
+        <div id="search-results"></div>
+    </div>
+
+    <div id="screen-profile" class="hidden">
+        <div class="card profile-header" id="profile-info"></div>
+        <div id="profile-posts"></div>
+        <div class="card hidden" id="edit-profile-card">
+            <div style="font-weight:600; margin-bottom:15px">Редактировать профиль</div>
+            <input type="text" id="edit-handle" placeholder="Новый @username">
+            <textarea id="edit-bio" placeholder="О себе..."></textarea>
+            <input type="file" id="edit-avatar" accept="image/*">
+            <button onclick="saveProfile()">Сохранить</button>
+        </div>
+    </div>
+</div>
+
+<div class="nav-bar">
+    <div class="nav-item active" id="nav-home" onclick="showScreen('home')">Главная</div>
+    <div class="nav-item" id="nav-search" onclick="showScreen('search')">Поиск</div>
+    <div class="nav-item" id="nav-profile" onclick="showScreen('profile')">Профиль</div>
+</div>
+
+<script>
+    const socket = io();
+    let currentUser = null;
+
+    const CLOUD_NAME = 'dyefptrpj'; 
+    const UPLOAD_PRESET = 'dark_social_preset'; 
+
+    function toggleAuth() {
+        document.getElementById('login-form').classList.toggle('hidden');
+        document.getElementById('reg-form').classList.toggle('hidden');
+    }
+
+    async function handleAuth(type) {
+        const user = type === 'login' ? document.getElementById('auth-user').value : document.getElementById('reg-user').value;
+        const pass = type === 'login' ? document.getElementById('auth-pass').value : document.getElementById('reg-pass').value;
+        if(!user || !pass) return alert("Заполните все поля");
+        try {
+            const res = await fetch(`/auth/${type}`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: user, password: pass })
+            });
+            const data = await res.json();
+            if (data.success) {
+                currentUser = type === 'login' ? data.username : user;
+                document.getElementById('auth-screen').classList.add('hidden');
+                if(currentUser === 'admin') document.getElementById('admin-controls').classList.remove('hidden');
+                init();
+            } else { alert(data.error); }
+        } catch (e) { alert("Ошибка сервера"); }
+    }
+
+    function showScreen(screen) {
+        document.getElementById('screen-home').classList.add('hidden');
+        document.getElementById('screen-search').classList.add('hidden');
+        document.getElementById('screen-profile').classList.add('hidden');
+        document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+        document.getElementById('screen-' + screen).classList.remove('hidden');
+        document.getElementById('nav-' + screen).classList.add('active');
+        if (screen === 'profile') loadProfile(currentUser);
+    }
+
+    function createPostHTML(p) {
+        const isAdmin = currentUser === 'admin';
+        return `
+            <div class="post">
+                ${isAdmin ? `<input type="checkbox" class="post-check" value="${p._id}">` : ''}
+                ${isAdmin ? `<button class="btn-delete" onclick="deletePost('${p._id}')">Удалить</button>` : ''}
+                <div class="post-header"><b style="color:white">${p.username}</b> <small style="color:#8e8e8e">${p.date ? new Date(p.date).toLocaleString() : ''}</small></div>
+                <div class="post-text">${p.text}</div>
+                ${p.file ? (p.file.match(/\.(mp4|mov|webm)$/i) ? `<video src="${p.file}" controls></video>` : `<img src="${p.file}">`) : ''}
+            </div>`;
+    }
+
+    async function adminAction(action) {
+        if(currentUser !== 'admin') return;
+        let endpoint = '';
+        let body = { username: currentUser };
+
+        if(action === 'all') endpoint = '/api/admin/delete-all';
+        else if(action === 'user') {
+            const target = prompt("Введите имя пользователя для удаления всех его постов:");
+            if(!target) return;
+            endpoint = '/api/admin/delete-user';
+            body.targetUser = target;
+        } else if(action === 'selected') {
+            const selected = Array.from(document.querySelectorAll('.post-check:checked')).map(cb => cb.value);
+            if(selected.length === 0) return alert("Выберите посты галочками!");
+            endpoint = '/api/admin/delete-selected';
+            body.ids = selected;
+        }
+
+        await fetch(endpoint, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+    }
+
+    async function deletePost(id) {
+        if (confirm("Удалить?")) {
+            await fetch('/delete-post', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: currentUser, postId: id })
+            });
+        }
+    }
+
+    async function uploadContent(type) {
+        const text = document.getElementById('postText').value;
+        const fileInput = document.getElementById('fileInput');
+        let fileUrl = null;
+        if (fileInput.files[0]) {
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+            formData.append('upload_preset', UPLOAD_PRESET);
+            try {
+                const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/auto/upload`, { method: 'POST', body: formData });
+                const data = await res.json();
+                fileUrl = data.secure_url;
+            } catch (e) { alert("Ошибка облака"); return; }
+        }
+        await fetch('/upload', { 
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, 
+            body: JSON.stringify({ username: currentUser, text, file: fileUrl, type }) 
+        });
+        document.getElementById('postText').value = '';
+        document.getElementById('fileInput').value = '';
+    }
+
+    async function init() {
+        try {
+            const pRes = await fetch('/api/posts');
+            const posts = await pRes.json();
+            document.getElementById('feed').innerHTML = posts.map(p => createPostHTML(p)).join('');
+            const sRes = await fetch('/api/stories');
+            const stories = await sRes.json();
+            document.getElementById('stories').innerHTML = stories.map(s => `<div class="story-wrapper"><img src="${s.file}" class="story"><div class="story-name">${s.username}</div></div>`).join('');
+        } catch (e) { console.error("Init error"); }
+    }
+
+    async function searchUsers() {
+        const q = document.getElementById('searchQuery').value;
+        const res = await fetch(`/api/search?q=${q}`);
+        const users = await res.json();
+        document.getElementById('search-results').innerHTML = users.map(u => `
+            <div class="user-item" onclick="loadProfile('${u.handle}')">
+                <img src="${u.avatar}">
+                <div><b>${u.username}</b><br><small>@${u.handle}</small></div>
+            </div>`).
