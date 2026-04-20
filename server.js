@@ -11,7 +11,7 @@ app.use(express.json());
 app.use(express.static('public'));
 
 // --- НАСТРОЙКА МОНГОДБ (Вставь свою ссылку из Atlas!) ---
-const MONGO_URI = 'mongodb+srv://admin:<Wdf31-dd>@cluster0.jfibkwu.mongodb.net/?appName=Cluster0';
+const MONGO_URI = 'mongodb+srv://admin:Wdf31-dd@cluster0.jfibkwu.mongodb.net/?appName=Cluster0';
 mongoose.connect(MONGO_URI)
     .then(() => console.log('✅ MongoDB Connected'))
     .catch(err => console.error('❌ MongoDB Connection Error:', err));
