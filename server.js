@@ -10,7 +10,6 @@ const io = socketio(server, { cors: { origin: "*" } });
 app.use(express.json());
 app.use(express.static('public'));
 
-// --- МОНГОДБ (Вставь свою ссылку!) ---
 const MONGO_URI = 'mongodb+srv://admin:Wdf31-dd@cluster0.jfibkwu.mongodb.net/?appName=Cluster0';
 mongoose.connect(MONGO_URI)
     .then(() => console.log('✅ MongoDB Connected'))
@@ -31,13 +30,10 @@ const ContentSchema = new mongoose.Schema({
     date: { type: Date, default: Date.now },
     expiresAt: { type: Date, index: { expires: 0 } }
 });
-const ConfigSchema = new mongoose.Schema({ key: { type: String, unique: true }, value: mongoose.Schema.Types.Mixed });
 
 const User = mongoose.model('User', UserSchema);
 const Content = mongoose.model('Content', ContentSchema);
-const Config = mongoose.model('Config', ConfigSchema);
 
-// --- API ---
 app.get('/api/posts', async (req, res) => {
     const posts = await Content.find({ type: 'post' }).sort({ date: -1 });
     res.json(posts);
@@ -48,19 +44,14 @@ app.get('/api/stories', async (req, res) => {
     res.json(stories);
 });
 
-// ПОЛУЧЕНИЕ ДАННЫХ ПОЛЬЗОВАТЕЛЯ (По имени или нику)
 app.get('/api/user-info', async (req, res) => {
-    const { username, handle } = req.query;
-    let user = null;
-    if (handle) {
-        user = await User.findOne({ handle });
-    } else if (username) {
-        user = await User.findOne({ username });
-    }
-    if (!user) return res.status(404).json({ error: "Пользователь не найден" });
-    
-    const posts = await Content.find({ username: user.username, type: 'post' }).sort({ date: -1 });
-    res.json({ user, posts });
+    try {
+        const { q } = req.query;
+        const user = await User.findOne({ $or: [{ handle: q }, { username: q }] });
+        if (!user) return res.status(404).json({ error: "Пользователь не найден" });
+        const posts = await Content.find({ username: user.username, type: 'post' }).sort({ date: -1 });
+        res.json({ user, posts });
+    } catch (e) { res.status(500).json({ error: "Ошибка сервера" }); }
 });
 
 app.get('/api/search', async (req, res) => {
@@ -70,13 +61,12 @@ app.get('/api/search', async (req, res) => {
 });
 
 app.post('/api/user/update', async (req, res) => {
-    const { username, avatar, bio, handle } = req.body;
-    const updateData = {};
-    if (avatar) updateData.avatar = avatar;
-    if (bio !== undefined) updateData.bio = bio;
-    if (handle) updateData.handle = handle;
-
     try {
+        const { username, avatar, bio, handle } = req.body;
+        const updateData = {};
+        if (avatar) updateData.avatar = avatar;
+        if (bio !== undefined) updateData.bio = bio;
+        if (handle) updateData.handle = handle;
         const updatedUser = await User.findOneAndUpdate({ username }, updateData, { new: true });
         res.json({ success: true, user: updatedUser });
     } catch (e) { res.status(500).json({ error: e.message }); }
