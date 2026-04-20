@@ -10,8 +10,10 @@ const io = socketio(server, { cors: { origin: "*" } });
 app.use(express.json());
 app.use(express.static('public'));
 
-// --- МОНГОДБ (Вставь свою ссылку!) ---
-const MONGO_URI = 'mongodb+srv://admin:Wdf31-dd@cluster0.jfibkwu.mongodb.net/?appName=Cluster0;
+// --- МОНГОДБ ---
+// ЗАМЕНИ ПАРОЛЬ И ССЫЛКУ НА СВОИ
+const MONGO_URI = 'mongodb+srv://admin:Wdf31-dd@cluster0.jfibkwu.mongodb.net/?appName=Cluster0';
+
 mongoose.connect(MONGO_URI)
     .then(() => console.log('✅ MongoDB Connected'))
     .catch(err => console.error('❌ MongoDB Error:', err));
@@ -21,112 +23,99 @@ const UserSchema = new mongoose.Schema({
     password: { type: String, required: true },
     handle: { type: String, unique: true }, 
     avatar: { type: String, default: 'https://cdn-icons-png.flaticon.com/512/1490/1490764.png' },
-    bio: { type: String, default: 'Привет! Я новый пользователь.' }
+    bio: { type: String, default: 'Привет!' }
 });
 const ContentSchema = new mongoose.Schema({
     username: String,
     text: String,
     file: String,
     type: String,
-    date: { type: Date, default: Date.now },
-    expiresAt: { type: Date, index: { expires: 0 } }
+    date: { type: Date, default: Date.now }
 });
 
 const User = mongoose.model('User', UserSchema);
 const Content = mongoose.model('Content', ContentSchema);
 
-// --- API ---
+// API
 app.get('/api/posts', async (req, res) => {
-    try {
-        const posts = await Content.find({ type: 'post' }).sort({ date: -1 });
-        res.json(posts);
-    } catch (e) { res.status(500).json({ error: "Ошибка загрузки постов" }); }
+    const posts = await Content.find({ type: 'post' }).sort({ date: -1 });
+    res.json(posts);
 });
 
 app.get('/api/stories', async (req, res) => {
-    try {
-        const stories = await Content.find({ type: 'story' }).sort({ date: -1 }).limit(20);
-        res.json(stories);
-    } catch (e) { res.status(500).json({ error: "Ошибка загрузки историй" }); }
+    const stories = await Content.find({ type: 'story' }).sort({ date: -1 }).limit(20);
+    res.json(stories);
 });
 
 app.get('/api/user-info', async (req, res) => {
     try {
         const { q } = req.query;
         const user = await User.findOne({ $or: [{ handle: q }, { username: q }] });
-        if (!user) return res.status(404).json({ error: "Пользователь не найден" });
+        if (!user) return res.status(404).json({ error: "User not found" });
         const posts = await Content.find({ username: user.username, type: 'post' }).sort({ date: -1 });
         res.json({ user, posts });
-    } catch (e) { res.status(500).json({ error: "Ошибка сервера" }); }
+    } catch (e) { res.status(500).json({ error: "Server Error" }); }
 });
 
 app.get('/api/search', async (req, res) => {
-    try {
-        const query = req.query.q;
-        const users = await User.find({ $or: [{ handle: new RegExp(query, 'i') }, { username: new RegExp(query, 'i') }] }).limit(10);
-        res.json(users);
-    } catch (e) { res.status(500).json({ error: "Ошибка поиска" }); }
+    const query = req.query.q;
+    const users = await User.find({ $or: [{ handle: new RegExp(query, 'i') }, { username: new RegExp(query, 'i') }] }).limit(10);
+    res.json(users);
 });
 
 app.post('/api/user/update', async (req, res) => {
-    try {
-        const { username, avatar, bio, handle } = req.body;
-        const updateData = {};
-        if (avatar) updateData.avatar = avatar;
-        if (bio !== undefined) updateData.bio = bio;
-        if (handle) updateData.handle = handle;
-        const updatedUser = await User.findOneAndUpdate({ username }, updateData, { new: true });
-        res.json({ success: true, user: updatedUser });
-    } catch (e) { res.status(500).json({ error: e.message }); }
+    const { username, avatar, bio, handle } = req.body;
+    const updateData = {};
+    if (avatar) updateData.avatar = avatar;
+    if (bio !== undefined) updateData.bio = bio;
+    if (handle) updateData.handle = handle;
+    const updatedUser = await User.findOneAndUpdate({ username }, updateData, { new: true });
+    res.json({ success: true, user: updatedUser });
 });
 
 app.post('/auth/register', async (req, res) => {
     try {
         const { username, password } = req.body;
-        if (await User.findOne({ username })) return res.status(400).json({ error: "Имя занято" });
+        if (await User.findOne({ username })) return res.status(400).json({ error: "Taken" });
         const handle = username.toLowerCase().replace(/\s+/g, '_') + Math.floor(Math.random() * 1000);
         await User.create({ username, password, handle });
         res.json({ success: true });
-    } catch (e) { res.status(500).json({ error: "Ошибка регистрации" }); }
+    } catch (e) { res.status(500).json({ error: "Reg Error" }); }
 });
 
 app.post('/auth/login', async (req, res) => {
     try {
         const { username, password } = req.body;
         const user = await User.findOne({ username, password });
-        if (!user) return res.status(400).json({ error: "Неверный логин или пароль" });
+        if (!user) return res.status(400).json({ error: "Wrong pass" });
         res.json({ success: true, username: user.username });
-    } catch (e) { res.status(500).json({ error: "Ошибка входа" }); }
+    } catch (e) { res.status(500).json({ error: "Login Error" }); }
 });
 
-// --- МАССОВОЕ УДАЛЕНИЕ (Исправлено) ---
 app.post('/api/admin/delete-all', async (req, res) => {
-    if (req.body.username !== 'admin') return res.status(403).json({ error: "Доступ запрещен" });
+    if (req.body.username !== 'admin') return res.status(403).json({ error: "Forbidden" });
     await Content.deleteMany({});
     io.emit('refresh-content');
     res.json({ success: true });
 });
 
 app.post('/api/admin/delete-user', async (req, res) => {
-    if (req.body.username !== 'admin') return res.status(403).json({ error: "Доступ запрещен" });
-    const { targetUser } = req.body;
-    await Content.deleteMany({ username: targetUser });
+    if (req.body.username !== 'admin') return res.status(403).json({ error: "Forbidden" });
+    await Content.deleteMany({ username: req.body.targetUser });
     io.emit('refresh-content');
     res.json({ success: true });
 });
 
 app.post('/api/admin/delete-selected', async (req, res) => {
-    if (req.body.username !== 'admin') return res.status(403).json({ error: "Доступ запрещен" });
-    const { ids } = req.body;
-    await Content.deleteMany({ _id: { $in: ids } });
+    if (req.body.username !== 'admin') return res.status(403).json({ error: "Forbidden" });
+    await Content.deleteMany({ _id: { $in: req.body.ids } });
     io.emit('refresh-content');
     res.json({ success: true });
 });
 
 app.post('/delete-post', async (req, res) => {
-    const { username, postId } = req.body;
-    if (username !== 'admin') return res.status(403).json({ error: "Только админ" });
-    await Content.findByIdAndDelete(postId);
+    if (req.body.username !== 'admin') return res.status(403).json({ error: "Forbidden" });
+    await Content.findByIdAndDelete(req.body.postId);
     io.emit('refresh-content');
     res.json({ success: true });
 });
@@ -137,7 +126,7 @@ app.post('/upload', async (req, res) => {
         const newContent = await Content.create({ username, text, file, type });
         if (type === 'story') io.emit('new-story', newContent); else io.emit('new-post', newContent);
         res.json({ success: true });
-    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch (e) { res.status(500).json({ success: false }); }
 });
 
 io.on('connection', (socket) => {
@@ -145,4 +134,4 @@ io.on('connection', (socket) => {
 });
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+server.listen(PORT, () => console.log(`Server Live on port ${PORT}`));
