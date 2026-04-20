@@ -10,17 +10,17 @@ const io = socketio(server, { cors: { origin: "*" } });
 app.use(express.json());
 app.use(express.static('public'));
 
+// --- ВСТАВЬ СВОЮ ССЫЛКУ МОНГОДБ ТУТ ---
 const MONGO_URI = 'mongodb+srv://admin:Wdf31-dd@cluster0.jfibkwu.mongodb.net/?appName=Cluster0';
 mongoose.connect(MONGO_URI)
     .then(() => console.log('✅ MongoDB Connected'))
     .catch(err => console.error('❌ MongoDB Error:', err));
 
-// --- СХЕМЫ ДАННЫХ ---
 const UserSchema = new mongoose.Schema({ 
-    username: { type: String, unique: true }, 
-    password: { type: String },
-    handle: { type: String, unique: true }, // Уникальный ник @username
-    avatar: { type: String, default: 'https://via.placeholder.com/150' },
+    username: { type: String, unique: true, required: true }, 
+    password: { type: String, required: true },
+    handle: { type: String, unique: true }, 
+    avatar: { type: String, default: 'https://cdn-icons-png.flaticon.com/512/1490/1490764.png' },
     bio: { type: String, default: 'Привет! Я новый пользователь.' }
 });
 const ContentSchema = new mongoose.Schema({
@@ -48,45 +48,47 @@ app.get('/api/stories', async (req, res) => {
     res.json(stories);
 });
 
-// Поиск пользователя по нику
+// Получение данных СВОЕГО профиля (чтобы не гадать handle)
+app.get('/api/me', async (req, res) => {
+    const username = req.query.username;
+    const user = await User.findOne({ username });
+    res.json(user || { error: "User not found" });
+});
+
 app.get('/api/search', async (req, res) => {
     const query = req.query.q;
-    const users = await User.find({ handle: new RegExp(query, 'i') }).limit(10);
+    const users = await User.find({ 
+        $or: [
+            { handle: new RegExp(query, 'i') },
+            { username: new RegExp(query, 'i') }
+        ] 
+    }).limit(10);
     res.json(users);
 });
 
-// Получение профиля пользователя
 app.get('/api/profile/:handle', async (req, res) => {
     const user = await User.findOne({ handle: req.params.handle });
-    const posts = await Content.find({ username: user?.username, type: 'post' }).sort({ date: -1 });
+    if (!user) return res.status(404).json({ error: "Пользователь не найден" });
+    const posts = await Content.find({ username: user.username, type: 'post' }).sort({ date: -1 });
     res.json({ user, posts });
 });
 
-// Обновление профиля
 app.post('/api/user/update', async (req, res) => {
     const { username, avatar, bio, handle } = req.body;
-    const updatedUser = await User.findOneAndUpdate({ username }, { avatar, bio, handle }, { new: true });
+    const updateData = {};
+    if (avatar) updateData.avatar = avatar;
+    if (bio !== undefined) updateData.bio = bio;
+    if (handle) updateData.handle = handle;
+
+    const updatedUser = await User.findOneAndUpdate({ username }, updateData, { new: true });
     res.json({ success: true, user: updatedUser });
-});
-
-app.get('/api/config', async (req, res) => {
-    const settings = await Config.find();
-    res.json(settings);
-});
-
-app.post('/api/config', async (req, res) => {
-    const { username, key, value } = req.body;
-    if (username !== 'admin') return res.status(403).json({ error: "Только админ" });
-    await Config.findOneAndUpdate({ key }, { value }, { upsert: true });
-    res.json({ success: true });
 });
 
 app.post('/auth/register', async (req, res) => {
     try {
         const { username, password } = req.body;
         if (await User.findOne({ username })) return res.status(400).json({ error: "Имя занято" });
-        // Создаем базовый ник из имени (заменяем пробелы на _ и в нижний регистр)
-        const handle = username.toLowerCase().replace(/\s+/g, '_');
+        const handle = username.toLowerCase().replace(/\s+/g, '_') + Math.floor(Math.random() * 1000);
         await User.create({ username, password, handle });
         res.json({ success: true });
     } catch (e) { res.status(500).json({ error: "Ошибка регистрации" }); }
@@ -112,14 +114,8 @@ app.post('/delete-post', async (req, res) => {
 app.post('/upload', async (req, res) => {
     try {
         const { username, text, file, type } = req.body;
-        const config = await Config.findOne({ key: 'expiryTime' });
-        let expiresAt = null;
-        if (config && config.value !== 'forever') {
-            const hours = parseInt(config.value);
-            expiresAt = new Date(Date.now() + hours * 60 * 60 * 1000);
-        }
-        const newContent = await Content.create({ username, text, file, type, expiresAt });
-        if (type === 'story') io.emit('new-story', newContent); else io.emit('new-post', newContent);
+        const newContent = await Content.create({ username, text, file, type });
+        if (type === 'story') io.emit('new-//story', newContent); else io.emit('new-post', newContent);
         res.json({ success: true });
     } catch (e) { res.status(500).json({ success: false, error: e.message }); }
 });
