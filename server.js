@@ -11,7 +11,7 @@ app.use(express.json());
 app.use(express.static('public'));
 
 // --- МОНГОДБ (Вставь свою ссылку!) ---
-const MONGO_URI = 'mongodb+srv://admin:Wdf31-dd@cluster0.jfibkwu.mongodb.net/?appName=Cluster0';
+const MONGO_URI = 'mongodb+srv://admin:Wdf31-dd@cluster0.jfibkwu.mongodb.net/?appName=Cluster0;
 mongoose.connect(MONGO_URI)
     .then(() => console.log('✅ MongoDB Connected'))
     .catch(err => console.error('❌ MongoDB Error:', err));
@@ -28,7 +28,8 @@ const ContentSchema = new mongoose.Schema({
     text: String,
     file: String,
     type: String,
-    date: { type: Date, default: Date.now }
+    date: { type: Date, default: Date.now },
+    expiresAt: { type: Date, index: { expires: 0 } }
 });
 
 const User = mongoose.model('User', UserSchema);
@@ -36,13 +37,17 @@ const Content = mongoose.model('Content', ContentSchema);
 
 // --- API ---
 app.get('/api/posts', async (req, res) => {
-    const posts = await Content.find({ type: 'post' }).sort({ date: -1 });
-    res.json(posts);
+    try {
+        const posts = await Content.find({ type: 'post' }).sort({ date: -1 });
+        res.json(posts);
+    } catch (e) { res.status(500).json({ error: "Ошибка загрузки постов" }); }
 });
 
 app.get('/api/stories', async (req, res) => {
-    const stories = await Content.find({ type: 'story' }).sort({ date: -1 }).limit(20);
-    res.json(stories);
+    try {
+        const stories = await Content.find({ type: 'story' }).sort({ date: -1 }).limit(20);
+        res.json(stories);
+    } catch (e) { res.status(500).json({ error: "Ошибка загрузки историй" }); }
 });
 
 app.get('/api/user-info', async (req, res) => {
@@ -56,18 +61,20 @@ app.get('/api/user-info', async (req, res) => {
 });
 
 app.get('/api/search', async (req, res) => {
-    const query = req.query.q;
-    const users = await User.find({ $or: [{ handle: new RegExp(query, 'i') }, { username: new RegExp(query, 'i') }] }).limit(10);
-    res.json(users);
+    try {
+        const query = req.query.q;
+        const users = await User.find({ $or: [{ handle: new RegExp(query, 'i') }, { username: new RegExp(query, 'i') }] }).limit(10);
+        res.json(users);
+    } catch (e) { res.status(500).json({ error: "Ошибка поиска" }); }
 });
 
 app.post('/api/user/update', async (req, res) => {
-    const { username, avatar, bio, handle } = req.body;
-    const updateData = {};
-    if (avatar) updateData.avatar = avatar;
-    if (bio !== undefined) updateData.bio = bio;
-    if (handle) updateData.handle = handle;
     try {
+        const { username, avatar, bio, handle } = req.body;
+        const updateData = {};
+        if (avatar) updateData.avatar = avatar;
+        if (bio !== undefined) updateData.bio = bio;
+        if (handle) updateData.handle = handle;
         const updatedUser = await User.findOneAndUpdate({ username }, updateData, { new: true });
         res.json({ success: true, user: updatedUser });
     } catch (e) { res.status(500).json({ error: e.message }); }
@@ -92,7 +99,7 @@ app.post('/auth/login', async (req, res) => {
     } catch (e) { res.status(500).json({ error: "Ошибка входа" }); }
 });
 
-// --- МАССОВОЕ УДАЛЕНИЕ (Только Админ) ---
+// --- МАССОВОЕ УДАЛЕНИЕ (Исправлено) ---
 app.post('/api/admin/delete-all', async (req, res) => {
     if (req.body.username !== 'admin') return res.status(403).json({ error: "Доступ запрещен" });
     await Content.deleteMany({});
@@ -101,7 +108,7 @@ app.post('/api/admin/delete-all', async (req, res) => {
 });
 
 app.post('/api/admin/delete-user', async (req, res) => {
-    if (req.body.username !== 'admin') return res.status( que: "Доступ запрещен");
+    if (req.body.username !== 'admin') return res.status(403).json({ error: "Доступ запрещен" });
     const { targetUser } = req.body;
     await Content.deleteMany({ username: targetUser });
     io.emit('refresh-content');
