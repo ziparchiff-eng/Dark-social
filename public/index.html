@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>DARK SOCIAL — Ultra Premium</title>
+    <title>DARK SOCIAL — Admin Pro</title>
     <script src="/socket.io/socket.io.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
@@ -55,7 +55,6 @@
             padding-bottom: 100px; 
         }
         
-        /* Экраны авторизации */
         #auth-screen { 
             position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
             background: var(--bg-color); z-index: 2000; 
@@ -68,7 +67,6 @@
         }
         .hidden { display: none !important; }
 
-        /* Истории */
         .stories-container { 
             display: flex; gap: 12px; overflow-x: auto; padding: 20px 0; 
             scrollbar-width: none; 
@@ -81,18 +79,17 @@
         }
         .story-name { font-size: 11px; color: var(--text-secondary); text-align: center; }
 
-        /* Карточки и Инпуты */
         .card { 
             background: var(--card-bg); padding: 20px; border-radius: 24px; 
             border: 1px solid var(--border-color); margin-bottom: 20px; 
         }
-        input, textarea { 
+        input, textarea, select { 
             width: 100%; background: var(--input-bg); color: white; 
             padding: 14px; border: 1px solid var(--border-color); 
             border-radius: 14px; font-size: 14px; margin-bottom: 10px; 
             box-sizing: border-box; outline: none; transition: var(--transition);
         }
-        input:focus, textarea:focus { border-color: var(--accent-color); background: #222; }
+        input:focus, textarea:focus, select:focus { border-color: var(--accent-color); background: #222; }
         button { 
             background: var(--accent-color); color: black; border: none; 
             padding: 12px 20px; border-radius: 14px; cursor: pointer; 
@@ -101,26 +98,20 @@
         button:disabled { opacity: 0.5; cursor: not-allowed; }
         .btn-story { background: transparent; color: white; border: 1px solid white; margin-right: 10px; }
 
-        /* Лента */
         .post { 
             background: var(--card-bg); padding: 20px; border-radius: 24px; 
             margin-bottom: 20px; border: 1px solid var(--border-color); 
             animation: slideDown 0.4s ease; position: relative;
-            overflow: hidden; /* Чтобы контент не вылезал за скругленные углы */
+            overflow: hidden;
         }
         @keyframes slideDown { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
         .post-header { display: flex; justify-content: space-between; margin-bottom: 12px; }
         .post-user { font-weight: 600; }
         .post-date { font-size: 12px; color: var(--text-secondary); }
         .post-text { font-size: 15px; margin-bottom: 15px; color: #ddd; }
-        
-        /* ИСПРАВЛЕНИЕ ФОТО И ВИДЕО */
         .post img, .post video { 
-            width: 100%; 
-            max-height: 500px; /* Ограничение по высоте */
-            object-fit: cover; /* Заполнение без искажения */
-            border-radius: 16px; 
-            display: block; 
+            width: 100%; max-height: 500px; object-fit: cover; 
+            border-radius: 16px; display: block; 
         }
         .btn-delete { 
             position: absolute; top: 15px; right: 15px; background: #ff4444; 
@@ -128,7 +119,6 @@
             border-radius: 8px; cursor: pointer; z-index: 10;
         }
 
-        /* Чат */
         .chat-title { text-align: center; font-weight: 600; margin-bottom: 15px; }
         #chat-box { 
             height: 350px; overflow-y: auto; padding: 10px; 
@@ -162,10 +152,29 @@
 
 <header>DARK SOCIAL</header>
 <div class="container">
+    
+    <!-- ПАНЕЛЬ АДМИНА (Появляется только у admin) -->
+    <div id="admin-panel" class="card hidden">
+        <div style="font-weight: 600; margin-bottom: 15px; font-size: 16px;">⚙️ Управление сервером</div>
+        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px;">
+            <span style="font-size: 14px;">Удаление постов:</span>
+            <select id="set-expiry" onchange="updateConfig('expiryTime', this.value)">
+                <option value="forever">Вечно</option>
+                <option value="1">1 час</option>
+                <option value="24">1 сутки</option>
+                <option value="168">1 неделя</option>
+            </select>
+        </div>
+        <div style="display: flex; align-items: center; gap: 10px;">
+            <span style="font-size: 14px;">Лимит чата (сек):</span>
+            <input type="number" id="set-chat" style="width: 80px; margin-bottom: 0;" onchange="updateConfig('chatLimit', this.value)">
+        </div>
+    </div>
+
     <div class="stories-container" id="stories"></div>
     
     <div class="card">
-        <div style="margin-bottom: 15px; font-weight: 600;">Создать публикацию</div>
+        <div style="margin-bottom: 15px; font-weight: 600; font-size: 16px;">Создать публикацию</div>
         <textarea id="postText" rows="3" placeholder="О чем вы думаете?"></textarea>
         <input type="file" id="fileInput" accept="image/*,video/*">
         <div style="display: flex; justify-content: flex-end;">
@@ -190,10 +199,10 @@
     const socket = io();
     let currentUser = null;
 
-    // --- ЗАПОЛНИ ЭТИ ДАННЫЕ ИЗ CLOUDINARY ---
+    // --- ДАННЫЕ CLOUDINARY ---
     const CLOUD_NAME = 'dyefptrpj'; 
     const UPLOAD_PRESET = 'dark_social_preset'; 
-    // ----------------------------------------------
+    // ------------------------
 
     function toggleAuth() {
         document.getElementById('login-form').classList.toggle('hidden');
@@ -215,9 +224,32 @@
             if (data.success) {
                 currentUser = type === 'login' ? data.username : user;
                 document.getElementById('auth-screen').classList.add('hidden');
+                if(currentUser === 'admin') {
+                    document.getElementById('admin-panel').classList.remove('hidden');
+                    loadConfig();
+                }
                 init();
             } else { alert(data.error); }
         } catch (e) { alert("Ошибка связи с сервером"); }
+    }
+
+    async function loadConfig() {
+        try {
+            const res = await fetch('/api/config');
+            const configs = await res.json();
+            configs.forEach(c => {
+                if(c.key === 'expiryTime') document.getElementById('set-expiry').value = c.value;
+                if(c.key === 'chatLimit') document.getElementById('set-chat').value = c.value;
+            });
+        } catch (e) { console.log("Ошибка загрузки конфига"); }
+    }
+
+    async function updateConfig(key, value) {
+        await fetch('/api/config', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username: currentUser, key, value })
+        });
     }
 
     function createPostHTML(p, index) {
@@ -271,7 +303,7 @@
                     return; 
                 }
             } catch (e) {
-                alert("Ошибка сети при загрузке в облако");
+                alert("Ошибка сети");
                 btnPost.disabled = false; btnStory.disabled = false;
                 btnPost.innerText = "Опубликовать"; btnStory.innerText = "В историю";
                 return;
@@ -318,6 +350,7 @@
         document.getElementById('stories').insertAdjacentHTML('afterbegin', `<div class="story-wrapper"><img src="${story.file}" class="story"><div class="story-name">${story.username}</div></div>`);
     });
     socket.on('refresh-content', () => init());
+    socket.on('error-msg', (data) => alert(data.text));
     socket.on('message', (msg) => {
         const box = document.getElementById('chat-box');
         const isMe = msg.user === currentUser;
