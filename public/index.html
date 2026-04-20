@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>DARK SOCIAL — Ultra Premium</title>
+    <title>DARK SOCIAL — Database Edition</title>
     <script src="/socket.io/socket.io.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
@@ -55,7 +55,7 @@
             padding-bottom: 100px; 
         }
         
-        /* Auth Screen */
+        /* Экраны авторизации */
         #auth-screen { 
             position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
             background: var(--bg-color); z-index: 2000; 
@@ -68,7 +68,7 @@
         }
         .hidden { display: none !important; }
 
-        /* Stories */
+        /* Истории */
         .stories-container { 
             display: flex; gap: 12px; overflow-x: auto; padding: 20px 0; 
             scrollbar-width: none; 
@@ -79,9 +79,9 @@
             width: 68px; height: 68px; background: #222; border-radius: 50%; 
             border: 2px solid var(--accent-color); object-fit: cover; 
         }
-        .story-name { font-size: 11px; color: var(--text-secondary); }
+        .story-name { font-size: 11px; color: var(--text-secondary); text-align: center; }
 
-        /* Cards & Inputs */
+        /* Карточки и Инпуты */
         .card { 
             background: var(--card-bg); padding: 20px; border-radius: 24px; 
             border: 1px solid var(--border-color); margin-bottom: 20px; 
@@ -101,7 +101,7 @@
         button:disabled { opacity: 0.5; cursor: not-allowed; }
         .btn-story { background: transparent; color: white; border: 1px solid white; margin-right: 10px; }
 
-        /* Feed */
+        /* Лента */
         .post { 
             background: var(--card-bg); padding: 20px; border-radius: 24px; 
             margin-bottom: 20px; border: 1px solid var(--border-color); 
@@ -119,7 +119,7 @@
             border-radius: 8px; cursor: pointer;
         }
 
-        /* Chat */
+        /* Чат */
         .chat-title { text-align: center; font-weight: 600; margin-bottom: 15px; }
         #chat-box { 
             height: 350px; overflow-y: auto; padding: 10px; 
@@ -134,16 +134,17 @@
 </head>
 <body>
 
+<!-- Экран Авторизации -->
 <div id="auth-screen">
     <div class="auth-card" id="login-form">
-        <h2>Вход</h2>
+        <h2 style="margin-top:0">Вход</h2>
         <input type="text" id="auth-user" placeholder="Логин">
         <input type="password" id="auth-pass" placeholder="Пароль">
         <button onclick="auth('login')" style="width:100%">Войти</button>
         <p style="font-size:13px; color:#8e8e8e; cursor:pointer; margin-top:15px" onclick="toggleAuth()">Нет аккаунта? Регистрация</p>
     </div>
     <div class="auth-card hidden" id="reg-form">
-        <h2>Регистрация</h2>
+        <h2 style="margin-top:0">Регистрация</h2>
         <input type="text" id="reg-user" placeholder="Придумайте логин">
         <input type="password" id="reg-pass" placeholder="Придумайте пароль">
         <button onclick="auth('register')" style="width:100%">Создать аккаунт</button>
@@ -182,8 +183,8 @@
     let currentUser = null;
 
     // --- !!! ЗАПОЛНИ ЭТИ ДАННЫЕ ИЗ CLOUDINARY !!! ---
-    const CLOUD_NAME = 'dyefptrpj'; 
-    const UPLOAD_PRESET = 'dark_social_preset'; 
+    const CLOUD_NAME = ' dyefptrpj '; 
+    const UPLOAD_PRESET = ' dark_social_preset '; 
     // ----------------------------------------------
 
     function toggleAuth() {
@@ -215,8 +216,8 @@
         const isAdmin = currentUser === 'admin';
         return `
             <div class="post">
-                ${isAdmin ? `<button class="btn-delete" onclick="deletePost(${index})">Удалить</button>` : ''}
-                <div class="post-header"><b style="color:white">${p.username}</b> <small style="color:#8e8e8e">${p.date}</small></div>
+                ${isAdmin ? `<button class="btn-delete" onclick="deletePost('${p._id}')">Удалить</button>` : ''}
+                <div class="post-header"><b style="color:white">${p.username}</b> <small style="color:#8e8e8e">${new Date(p.date).toLocaleString()}</small></div>
                 <div class="post-text">${p.text}</div>
                 ${p.file ? (p.file.match(/\.(mp4|mov|webm)$/i) ? `<video src="${p.file}" controls></video>` : `<img src="${p.file}">`) : ''}
             </div>`;
