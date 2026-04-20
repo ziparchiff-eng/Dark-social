@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>DARK SOCIAL — Final</title>
+    <title>DARK SOCIAL — Pro Fix</title>
     <script src="/socket.io/socket.io.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
         :root { --bg-color: #000; --card-bg: #121212; --accent-color: #fff; --text-main: #fff; --text-secondary: #8e8e8e; --border-color: #262626; }
         body { font-family: 'Inter', sans-serif; background: var(--bg-color); color: var(--text-main); margin: 0; display: flex; flex-direction: column; align-items: center; }
-        header { background: rgba(0, 0, 0, 0.8); backdrop-filter: blur(20px); color: white; width: 100%; text-align: center; padding: 18px 0; font-size: 18px; font-weight: 700; position: sticky; top: 0; z-index: 1000; border-bottom: 1px solid var(--border-color); }
+        header { background: rgba(0,0,0,0.8); backdrop-filter: blur(20px); color: white; width: 100%; text-align: center; padding: 18px 0; font-size: 18px; font-weight: 700; position: sticky; top: 0; z-index: 1000; border-bottom: 1px solid var(--border-color); }
         .container { width: 100%; max-width: 600px; padding: 0 15px; margin-top: 20px; padding-bottom: 80px; }
         #auth-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg-color); z-index: 2000; display: flex; justify-content: center; align-items: center; }
         .auth-card { background: var(--card-bg); padding: 30px; border-radius: 24px; border: 1px solid var(--border-color); width: 90%; max-width: 380px; text-align: center; }
@@ -18,12 +18,11 @@
         .nav-item { cursor: pointer; font-size: 12px; color: var(--text-secondary); transition: 0.3s; font-weight: 600; }
         .nav-item.active { color: var(--accent-color); }
         .stories-container { display: flex; gap: 12px; overflow-x: auto; padding: 20px 0; scrollbar-width: none; }
-        .stories-container::-webkit-scrollbar { display: none; }
         .story-wrapper { display: flex; flex-direction: column; align-items: center; gap: 6px; flex-shrink: 0; cursor: pointer; }
         .story { width: 68px; height: 68px; background: #222; border-radius: 50%; border: 2px solid var(--accent-color); object-fit: cover; }
         .story-name { font-size: 11px; color: var(--text-secondary); }
         .card { background: var(--card-bg); padding: 20px; border-radius: 24px; border: 1px solid var(--border-color); margin-bottom: 20px; }
-        input, textarea, select { width: 100%; background: #1a1a1a; color: white; padding: 12px; border: 1px solid var(--border-color); border-radius: 14px; font-size: 14px; margin-bottom: 10px; box-sizing: border-box; outline: none; }
+        input, textarea { width: 100%; background: #1a1a1a; color: white; padding: 14px; border: 1px solid var(--border-color); border-radius: 14px; font-size: 14px; margin-bottom: 10px; box-sizing: border-box; outline: none; }
         button { background: var(--accent-color); color: black; border: none; padding: 12px 20px; border-radius: 14px; cursor: pointer; font-weight: 600; }
         .btn-story { background: transparent; color: white; border: 1px solid white; margin-right: 10px; }
         .post { background: var(--card-bg); padding: 20px; border-radius: 24px; margin-bottom: 20px; border: 1px solid var(--border-color); position: relative; overflow: hidden; }
@@ -116,7 +115,6 @@
     const socket = io();
     let currentUser = null;
 
-    // --- ЗАПОЛНИ ЭТИ ДАННЫЕ ИЗ CLOUDINARY ---
     const CLOUD_NAME = 'dyefptrpj'; 
     const UPLOAD_PRESET = 'dark_social_preset'; 
 
@@ -129,7 +127,6 @@
         const user = type === 'login' ? document.getElementById('auth-user').value : document.getElementById('reg-user').value;
         const pass = type === 'login' ? document.getElementById('auth-pass').value : document.getElementById('reg-pass').value;
         if(!user || !pass) return alert("Заполните все поля");
-
         try {
             const res = await fetch(`/auth/${type}`, {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -151,19 +148,12 @@
         document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
         document.getElementById('screen-' + screen).classList.remove('hidden');
         document.getElementById('nav-' + screen).classList.add('active');
-        if (screen === 'profile') loadMyProfile();
+        if (screen === 'profile') loadProfile(currentUser, true);
     }
 
     function createPostHTML(p) {
         const isAdmin = currentUser === 'admin';
-        return `
-            <div class="post">
-                ${isAdmin ? `<button class="btn-delete" onclick="deletePost('${p._id}')">Удалить</button>` : ''}
-                <div class="post-header"><b style="color:white">${p.username}</b> <small style="color:#8e8e8e">${// Use Date.toLocaleString if p.date is a string/date
-                    p.date ? new Date(p.date).toLocaleString() : ''}</small></div>
-                <div class="post-text">${p.text}</div>
-                ${p.file ? (p.file.match(/\.(mp4|mov|webm)$/i) ? `<video src="${p.file}" controls></video>` : `<img src="${p.file}">`) : ''}
-            </div>`;
+        return `<div class="post">${isAdmin ? `<button class="btn-delete" onclick="deletePost('${p._id}')">Удалить</button>` : ''}<div class="post-header"><b style="color:white">${p.username}</b> <small style="color:#8e8e8e">${p.date ? new Date(p.date).toLocaleString() : ''}</small></div><div class="post-text">${p.text}</div>${p.file ? (p.file.match(/\.(mp4|mov|webm)$/i) ? `<video src="${p.file}" controls></video>` : `<img src="${p.file}">`) : ''}</div>`;
     }
 
     async function deletePost(id) {
@@ -205,7 +195,7 @@
             const sRes = await fetch('/api/stories');
             const stories = await sRes.json();
             document.getElementById('stories').innerHTML = stories.map(s => `<div class="story-wrapper"><img src="${s.file}" class="story"><div class="story-name">${s.username}</div></div>`).join('');
-        } catch (e) { console.error("Error loading data"); }
+        } catch (e) { console.error("Init error"); }
     }
 
     async function searchUsers() {
@@ -213,38 +203,32 @@
         const res = await fetch(`/api/search?q=${q}`);
         const users = await res.json();
         document.getElementById('search-results').innerHTML = users.map(u => `
-            <div class="user-item" onclick="viewProfile('${u.handle}')">
+            <div class="user-item" onclick="loadProfile('${u.handle}', false)">
                 <img src="${u.avatar}">
                 <div><b>${u.username}</b><br><small>@${u.handle}</small></div>
             </div>`).join('');
     }
 
-    async function viewProfile(handle) {
-        const res = await fetch(`/api/profile/${handle}`);
-        const { user, posts } = await res.json();
-        showScreen('profile');
-        document.getElementById('profile-info').innerHTML = `
-            <img src="${user.avatar}" class="profile-avatar">
-            <div class="profile-handle">@${user.handle}</div>
-            <div class="profile-bio">${user.bio}</div>
-            ${user.username === currentUser ? `<button onclick="document.getElementById('edit-profile-card').classList.toggle('hidden')">Редактировать</button>` : ''}
-        `;
-        document.getElementById('profile-posts').innerHTML = posts.map(p => createPostHTML(p)).join('');
-    }
-
-    async function loadMyProfile() {
+    async function loadProfile(idValue, isMyProfile) {
+        const url = isMyProfile ? `/api/user-info?username=${idValue}` : `/api/user-info?handle=${idValue}`;
         try {
-            const res = await fetch(`/api/profile/${currentUser.toLowerCase().replace(/\s+/g, '_')}`);
+            const res = await fetch(url);
+            if (!res.ok) throw new Error("Пользователь не найден");
             const { user, posts } = await res.json();
-            if(!user) return;
+            
+            showScreen('profile');
             document.getElementById('profile-info').innerHTML = `
                 <img src="${user.avatar}" class="profile-avatar">
                 <div class="profile-handle">@${user.handle}</div>
                 <div class="profile-bio">${user.bio}</div>
-                <button onclick="document.getElementById('edit-profile-card').classList.toggle('hidden')">Редактировать</button>
+                ${user.username === currentUser ? `<button onclick="document.getElementById('edit-profile-card').classList.toggle('hidden')">Редактировать</button>` : ''}
             `;
             document.getElementById('profile-posts').innerHTML = posts.map(p => createPostHTML(p)).join('');
-        } catch (e) { console.log("Profile load error"); }
+            document.getElementById('edit-profile-card').classList.add('hidden');
+        } catch (e) {
+            alert(e.message);
+            showScreen('home');
+        }
     }
 
     async function saveProfile() {
@@ -265,7 +249,7 @@
             body: JSON.stringify({ username: currentUser, avatar: avatarUrl, bio, handle })
         });
         alert("Обновлено!");
-        loadMyProfile();
+        loadProfile(currentUser, true);
     }
 
     function sendMessage() {
@@ -287,6 +271,7 @@
         box.innerHTML += `<div class="msg ${isMe ? 'msg-sent' : 'msg-received'}"><span class="msg-user">${msg.user}</span>${msg.text}</div>`;
         box.scrollTop = box.scrollHeight;
     });
+    init();
 </script>
 </body>
 </html>
