@@ -10,30 +10,32 @@ const io = socketio(server, { cors: { origin: "*" } });
 app.use(express.json());
 app.use(express.static('public'));
 
-// --- МОНГОДБ ---
 const MONGO_URI = 'mongodb+srv://admin:Wdf31-dd@cluster0.jfibkwu.mongodb.net/?appName=Cluster0';
 mongoose.connect(MONGO_URI)
     .then(() => console.log('✅ MongoDB Connected'))
     .catch(err => console.error('❌ MongoDB Error:', err));
 
-// Схемы данных
-const UserSchema = new mongoose.Schema({ username: { type: String, unique: true }, password: { type: String } });
+// --- СХЕМЫ ДАННЫХ ---
+const UserSchema = new mongoose.Schema({ 
+    username: { type: String, unique: true }, 
+    password: { type: String },
+    handle: { type: String, unique: true }, // Уникальный ник @username
+    avatar: { type: String, default: 'https://via.placeholder.com/150' },
+    bio: { type: String, default: 'Привет! Я новый пользователь.' }
+});
 const ContentSchema = new mongoose.Schema({
     username: String,
     text: String,
     file: String,
     type: String,
     date: { type: Date, default: Date.now },
-    expiresAt: { type: Date, index: { expires: 0 } } // TTL Индекс: MongoDB удалит документ в это время
+    expiresAt: { type: Date, index: { expires: 0 } }
 });
 const ConfigSchema = new mongoose.Schema({ key: { type: String, unique: true }, value: mongoose.Schema.Types.Mixed });
 
 const User = mongoose.model('User', UserSchema);
 const Content = mongoose.model('Content', ContentSchema);
 const Config = mongoose.model('Config', ConfigSchema);
-
-// Хранилище времени последних сообщений (для анти-спама)
-const chatCooldowns = new Map();
 
 // --- API ---
 app.get('/api/posts', async (req, res) => {
@@ -46,13 +48,32 @@ app.get('/api/stories', async (req, res) => {
     res.json(stories);
 });
 
-// Получение настроек сервера
+// Поиск пользователя по нику
+app.get('/api/search', async (req, res) => {
+    const query = req.query.q;
+    const users = await User.find({ handle: new RegExp(query, 'i') }).limit(10);
+    res.json(users);
+});
+
+// Получение профиля пользователя
+app.get('/api/profile/:handle', async (req, res) => {
+    const user = await User.findOne({ handle: req.params.handle });
+    const posts = await Content.find({ username: user?.username, type: 'post' }).sort({ date: -1 });
+    res.json({ user, posts });
+});
+
+// Обновление профиля
+app.post('/api/user/update', async (req, res) => {
+    const { username, avatar, bio, handle } = req.body;
+    const updatedUser = await User.findOneAndUpdate({ username }, { avatar, bio, handle }, { new: true });
+    res.json({ success: true, user: updatedUser });
+});
+
 app.get('/api/config', async (req, res) => {
     const settings = await Config.find();
     res.json(settings);
 });
 
-// Обновление настроек (Только для админа)
 app.post('/api/config', async (req, res) => {
     const { username, key, value } = req.body;
     if (username !== 'admin') return res.status(403).json({ error: "Только админ" });
@@ -64,7 +85,9 @@ app.post('/auth/register', async (req, res) => {
     try {
         const { username, password } = req.body;
         if (await User.findOne({ username })) return res.status(400).json({ error: "Имя занято" });
-        await User.create({ username, password });
+        // Создаем базовый ник из имени (заменяем пробелы на _ и в нижний регистр)
+        const handle = username.toLowerCase().replace(/\s+/g, '_');
+        await User.create({ username, password, handle });
         res.json({ success: true });
     } catch (e) { res.status(500).json({ error: "Ошибка регистрации" }); }
 });
@@ -89,45 +112,20 @@ app.post('/delete-post', async (req, res) => {
 app.post('/upload', async (req, res) => {
     try {
         const { username, text, file, type } = req.body;
-        
-        // Расчет времени удаления
         const config = await Config.findOne({ key: 'expiryTime' });
         let expiresAt = null;
         if (config && config.value !== 'forever') {
             const hours = parseInt(config.value);
             expiresAt = new Date(Date.now() + hours * 60 * 60 * 1000);
         }
-
-        const newContent = await Content.create({
-            username, text, file, type, expiresAt
-        });
-        
-        if (type === 'story') {
-            io.emit('new-story', newContent);
-        } else {
-            io.emit('new-post', newContent);
-        }
+        const newContent = await Content.create({ username, text, file, type, expiresAt });
+        if (type === 'story') io.emit('new-story', newContent); else io.emit('new-post', newContent);
         res.json({ success: true });
     } catch (e) { res.status(500).json({ success: false, error: e.message }); }
 });
 
 io.on('connection', (socket) => {
-    socket.on('message', async (msg) => {
-        const now = Date.now();
-        const lastTime = chatCooldowns.get(msg.user) || 0;
-        
-        // Получаем лимит из конфига (по умолчанию 5 секунд)
-        const config = await Config.findOne({ key: 'chatLimit' });
-        const limit = config ? config.value * 1000 : 5000;
-
-        if (now - lastTime < limit) {
-            socket.emit('error-msg', { text: `Подождите еще ${Math.ceil((limit - (now - lastTime))/1000)} сек.` });
-            return;
-        }
-
-        chatCooldowns.set(msg.user, now);
-        io.emit('message', msg); 
-    });
+    socket.on('message', (msg) => { io.emit('message', msg); });
 });
 
 const PORT = process.env.PORT || 3000;
