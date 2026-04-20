@@ -10,7 +10,7 @@ const io = socketio(server, { cors: { origin: "*" } });
 app.use(express.json());
 app.use(express.static('public'));
 
-// --- ВСТАВЬ СВОЮ ССЫЛКУ МОНГОДБ ТУТ ---
+// --- МОНГОДБ (Вставь свою ссылку!) ---
 const MONGO_URI = 'mongodb+srv://admin:Wdf31-dd@cluster0.jfibkwu.mongodb.net/?appName=Cluster0';
 mongoose.connect(MONGO_URI)
     .then(() => console.log('✅ MongoDB Connected'))
@@ -48,29 +48,25 @@ app.get('/api/stories', async (req, res) => {
     res.json(stories);
 });
 
-// Получение данных СВОЕГО профиля (чтобы не гадать handle)
-app.get('/api/me', async (req, res) => {
-    const username = req.query.username;
-    const user = await User.findOne({ username });
-    res.json(user || { error: "User not found" });
+// ПОЛУЧЕНИЕ ДАННЫХ ПОЛЬЗОВАТЕЛЯ (По имени или нику)
+app.get('/api/user-info', async (req, res) => {
+    const { username, handle } = req.query;
+    let user = null;
+    if (handle) {
+        user = await User.findOne({ handle });
+    } else if (username) {
+        user = await User.findOne({ username });
+    }
+    if (!user) return res.status(404).json({ error: "Пользователь не найден" });
+    
+    const posts = await Content.find({ username: user.username, type: 'post' }).sort({ date: -1 });
+    res.json({ user, posts });
 });
 
 app.get('/api/search', async (req, res) => {
     const query = req.query.q;
-    const users = await User.find({ 
-        $or: [
-            { handle: new RegExp(query, 'i') },
-            { username: new RegExp(query, 'i') }
-        ] 
-    }).limit(10);
+    const users = await User.find({ $or: [{ handle: new RegExp(query, 'i') }, { username: new RegExp(query, 'i') }] }).limit(10);
     res.json(users);
-});
-
-app.get('/api/profile/:handle', async (req, res) => {
-    const user = await User.findOne({ handle: req.params.handle });
-    if (!user) return res.status(404).json({ error: "Пользователь не найден" });
-    const posts = await Content.find({ username: user.username, type: 'post' }).sort({ date: -1 });
-    res.json({ user, posts });
 });
 
 app.post('/api/user/update', async (req, res) => {
@@ -80,8 +76,10 @@ app.post('/api/user/update', async (req, res) => {
     if (bio !== undefined) updateData.bio = bio;
     if (handle) updateData.handle = handle;
 
-    const updatedUser = await User.findOneAndUpdate({ username }, updateData, { new: true });
-    res.json({ success: true, user: updatedUser });
+    try {
+        const updatedUser = await User.findOneAndUpdate({ username }, updateData, { new: true });
+        res.json({ success: true, user: updatedUser });
+    } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.post('/auth/register', async (req, res) => {
@@ -115,7 +113,7 @@ app.post('/upload', async (req, res) => {
     try {
         const { username, text, file, type } = req.body;
         const newContent = await Content.create({ username, text, file, type });
-        if (type === 'story') io.emit('new-//story', newContent); else io.emit('new-post', newContent);
+        if (type === 'story') io.emit('new-story', newContent); else io.emit('new-post', newContent);
         res.json({ success: true });
     } catch (e) { res.status(500).json({ success: false, error: e.message }); }
 });
