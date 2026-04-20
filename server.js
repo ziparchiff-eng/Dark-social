@@ -10,6 +10,7 @@ const io = socketio(server, { cors: { origin: "*" } });
 app.use(express.json());
 app.use(express.static('public'));
 
+// --- МОНГОДБ (Вставь свою ссылку!) ---
 const MONGO_URI = 'mongodb+srv://admin:Wdf31-dd@cluster0.jfibkwu.mongodb.net/?appName=Cluster0';
 mongoose.connect(MONGO_URI)
     .then(() => console.log('✅ MongoDB Connected'))
@@ -27,13 +28,13 @@ const ContentSchema = new mongoose.Schema({
     text: String,
     file: String,
     type: String,
-    date: { type: Date, default: Date.now },
-    expiresAt: { type: Date, index: { expires: 0 } }
+    date: { type: Date, default: Date.now }
 });
 
 const User = mongoose.model('User', UserSchema);
 const Content = mongoose.model('Content', ContentSchema);
 
+// --- API ---
 app.get('/api/posts', async (req, res) => {
     const posts = await Content.find({ type: 'post' }).sort({ date: -1 });
     res.json(posts);
@@ -61,12 +62,12 @@ app.get('/api/search', async (req, res) => {
 });
 
 app.post('/api/user/update', async (req, res) => {
+    const { username, avatar, bio, handle } = req.body;
+    const updateData = {};
+    if (avatar) updateData.avatar = avatar;
+    if (bio !== undefined) updateData.bio = bio;
+    if (handle) updateData.handle = handle;
     try {
-        const { username, avatar, bio, handle } = req.body;
-        const updateData = {};
-        if (avatar) updateData.avatar = avatar;
-        if (bio !== undefined) updateData.bio = bio;
-        if (handle) updateData.handle = handle;
         const updatedUser = await User.findOneAndUpdate({ username }, updateData, { new: true });
         res.json({ success: true, user: updatedUser });
     } catch (e) { res.status(500).json({ error: e.message }); }
@@ -89,6 +90,30 @@ app.post('/auth/login', async (req, res) => {
         if (!user) return res.status(400).json({ error: "Неверный логин или пароль" });
         res.json({ success: true, username: user.username });
     } catch (e) { res.status(500).json({ error: "Ошибка входа" }); }
+});
+
+// --- МАССОВОЕ УДАЛЕНИЕ (Только Админ) ---
+app.post('/api/admin/delete-all', async (req, res) => {
+    if (req.body.username !== 'admin') return res.status(403).json({ error: "Доступ запрещен" });
+    await Content.deleteMany({});
+    io.emit('refresh-content');
+    res.json({ success: true });
+});
+
+app.post('/api/admin/delete-user', async (req, res) => {
+    if (req.body.username !== 'admin') return res.status( que: "Доступ запрещен");
+    const { targetUser } = req.body;
+    await Content.deleteMany({ username: targetUser });
+    io.emit('refresh-content');
+    res.json({ success: true });
+});
+
+app.post('/api/admin/delete-selected', async (req, res) => {
+    if (req.body.username !== 'admin') return res.status(403).json({ error: "Доступ запрещен" });
+    const { ids } = req.body;
+    await Content.deleteMany({ _id: { $in: ids } });
+    io.emit('refresh-content');
+    res.json({ success: true });
 });
 
 app.post('/delete-post', async (req, res) => {
